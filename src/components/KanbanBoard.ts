@@ -243,18 +243,29 @@ export class KanbanBoard {
   }
 
   /**
-   * Remove duplicate tasks based on ID
+   * Remove duplicate tasks the Tasks plugin cache can momentarily hand us —
+   * e.g. right after this plugin mints and writes a task id (see
+   * {@link TaskDetailsModal}), the cache can briefly carry both a stale and a
+   * freshly-reparsed copy of the same line, differing in `id`/`originalMarkdown`
+   * and so invisible to a dedupe keyed on those alone. A task's file location
+   * (path + line number) is the one thing that can't differ between two
+   * readings of the same physical line, so key on that first; fall back to
+   * id/originalMarkdown only for the location-less case (e.g. tests).
    */
   private removeDuplicateTasks(tasks: Task[]): Task[] {
-    const seenIds = new Set<string>();
-    return tasks.filter((task) => {
-      const id = task.id || task.originalMarkdown;
-      if (seenIds.has(id)) {
-        return false;
+    const byKey = new Map<string, Task>();
+    for (const task of tasks) {
+      const key = task.taskLocation
+        ? `${task.taskLocation.path}:${task.taskLocation.lineNumber}`
+        : task.id || task.originalMarkdown;
+      // On a collision, prefer whichever copy has an id — the freshly
+      // reparsed one, if this is the stale/fresh race described above.
+      const existing = byKey.get(key);
+      if (!existing || (!existing.id && task.id)) {
+        byKey.set(key, task);
       }
-      seenIds.add(id);
-      return true;
-    });
+    }
+    return [...byKey.values()];
   }
 
   /**
