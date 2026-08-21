@@ -17,7 +17,9 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
     "prepare": "husky",
     "postbuild": "mkdir -p test-vault/.obsidian/plugins/tasks-kanban-alex && ln -sf $(pwd)/main.js test-vault/.obsidian/plugins/tasks-kanban-alex/main.js",
-    "symlink": "ln -sf $(pwd)/main.js test-vault/.obsidian/plugins/tasks-kanban-alex/main.js"
+    "symlink": "ln -sf $(pwd)/main.js test-vault/.obsidian/plugins/tasks-kanban-alex/main.js",
+    "sync:megabrain": "mkdir -p \"$HOME/Obsidean/MegaBrain/.obsidian/plugins/tasks-kanban-alex\" && cp main.js manifest.json styles.css \"$HOME/Obsidean/MegaBrain/.obsidian/plugins/tasks-kanban-alex/\"",
+    "release:megabrain": "npm run build && npm run sync:megabrain"
   },
   "keywords": [
     "obsidian",
