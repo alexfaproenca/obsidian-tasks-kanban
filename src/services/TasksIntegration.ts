@@ -1,5 +1,8 @@
 import type { App, EventRef } from "obsidian";
 import { TaskUpdater } from "./TaskUpdater";
+import { TaskEditorService } from "./TaskEditorService";
+import { TaskDetailsRepository } from "./TaskDetailsRepository";
+import { TaskAttachmentService } from "./TaskAttachmentService";
 import {
   type TaskFormat,
   resolveTaskFormat,
@@ -100,6 +103,9 @@ export interface WriteSettings {
 export class TasksIntegration {
   public readonly app: App;
   public readonly taskUpdater: TaskUpdater;
+  public readonly taskEditorService: TaskEditorService;
+  public readonly taskDetailsRepository: TaskDetailsRepository;
+  public readonly taskAttachmentService: TaskAttachmentService;
   private tasks: Task[] = [];
   private statuses: StatusInfo[] = [];
   private eventRefs: EventRef[] = [];
@@ -108,6 +114,9 @@ export class TasksIntegration {
   constructor(app: App) {
     this.app = app;
     this.taskUpdater = new TaskUpdater(app, this);
+    this.taskEditorService = new TaskEditorService(app, this);
+    this.taskDetailsRepository = new TaskDetailsRepository(app);
+    this.taskAttachmentService = new TaskAttachmentService(app);
     this.setupEventListeners();
   }
 
@@ -162,6 +171,17 @@ export class TasksIntegration {
     for (const subscriber of this.subscribers) {
       subscriber(this.tasks);
     }
+  }
+
+  /**
+   * Re-broadcast the current tasks to subscribers after a change to this
+   * plugin's own data (Jira/notes/attachments via {@link taskDetailsRepository}).
+   * Those writes go to a dot-folder Obsidian doesn't watch or emit vault
+   * events for, so there's no other signal that would tell the board to
+   * refresh its per-card detail badges — this is that signal.
+   */
+  notifyDetailsChanged() {
+    this.notifySubscribers();
   }
 
   /**

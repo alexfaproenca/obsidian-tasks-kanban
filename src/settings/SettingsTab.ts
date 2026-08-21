@@ -42,6 +42,7 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
   private baseQuery = "";
   private baseColumns: ColumnConfig[] = [];
   private savedBoards: SavedBoard[] = [];
+  private jiraBaseUrl = "";
 
   // Parse-error state, keyed by field ("base" or a saved-board id).
   private errors = new Map<string, string[]>();
@@ -68,6 +69,21 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
               type: "textarea",
               key: "baseQuery",
               placeholder: QUERY_PLACEHOLDER,
+            },
+          },
+        ],
+      },
+      {
+        type: "group",
+        heading: "Jira",
+        items: [
+          {
+            name: "Jira base URL",
+            desc: "e.g. https://your-org.atlassian.net — used to build the link when clicking a task's Jira badge.",
+            control: {
+              type: "text",
+              key: "jiraBaseUrl",
+              placeholder: "https://your-org.atlassian.net",
             },
           },
         ],
@@ -109,6 +125,9 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
     if (key === "baseColumnsEnabled") {
       return data.baseColumns.length > 0;
     }
+    if (key === "jiraBaseUrl") {
+      return data.jiraBaseUrl;
+    }
     if (key.startsWith("savedBoardName-")) {
       const boardId = key.replace("savedBoardName-", "");
       const board = data.savedBoards.find((b) => b.id === boardId);
@@ -129,6 +148,7 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
         value as string,
         data.baseColumns,
         data.savedBoards,
+        data.jiraBaseUrl,
       );
       return;
     }
@@ -141,6 +161,16 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
         data.baseQuery,
         newColumns,
         data.savedBoards,
+        data.jiraBaseUrl,
+      );
+      return;
+    }
+    if (key === "jiraBaseUrl") {
+      await this.plugin.saveSettings(
+        data.baseQuery,
+        data.baseColumns,
+        data.savedBoards,
+        value as string,
       );
       return;
     }
@@ -153,6 +183,7 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
         data.baseQuery,
         data.baseColumns,
         savedBoards,
+        data.jiraBaseUrl,
       );
       return;
     }
@@ -165,6 +196,7 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
         data.baseQuery,
         data.baseColumns,
         savedBoards,
+        data.jiraBaseUrl,
       );
       return;
     }
@@ -185,6 +217,7 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
         symbols: [...c.symbols],
       })),
     }));
+    this.jiraBaseUrl = data.jiraBaseUrl;
     this.errors.clear();
 
     this.render();
@@ -209,6 +242,21 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
     this.renderColumnsSection(containerEl, this.baseColumns, (next) => {
       this.baseColumns = next;
     });
+
+    new Setting(containerEl).setName("Jira").setHeading();
+    new Setting(containerEl)
+      .setName("Jira base URL")
+      .setDesc(
+        "Used to build the link when clicking a task's Jira badge (e.g. https://your-org.atlassian.net).",
+      )
+      .addText((text) => {
+        text
+          .setPlaceholder("https://your-org.atlassian.net")
+          .setValue(this.jiraBaseUrl)
+          .onChange((value) => {
+            this.jiraBaseUrl = value;
+          });
+      });
 
     new Setting(containerEl).setName("Saved boards").setHeading();
 
@@ -489,6 +537,7 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
       this.baseQuery,
       clean(this.baseColumns),
       this.savedBoards.map((b) => ({ ...b, columns: clean(b.columns) })),
+      this.jiraBaseUrl,
     );
   }
 }

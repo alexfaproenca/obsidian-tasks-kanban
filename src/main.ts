@@ -140,8 +140,15 @@ export default class TasksKanbanPlugin extends Plugin {
     baseQuery: string,
     baseColumns: ColumnConfig[],
     savedBoards: SavedBoard[],
+    jiraBaseUrl: string,
   ) {
-    this.data = { ...this.data, baseQuery, baseColumns, savedBoards };
+    this.data = {
+      ...this.data,
+      baseQuery,
+      baseColumns,
+      savedBoards,
+      jiraBaseUrl,
+    };
     await this.saveData(this.data);
 
     const validIds = new Set([BASE_BOARD_ID, ...savedBoards.map((b) => b.id)]);
@@ -194,6 +201,7 @@ export default class TasksKanbanPlugin extends Plugin {
       return new TasksBoardView(leaf, tasksIntegration, {
         createPersistence: (id) => this.createPersistence(id),
         getBoardName: (id) => this.getBoardName(id),
+        getJiraBaseUrl: () => this.data.jiraBaseUrl,
       });
     });
 
@@ -256,6 +264,7 @@ export default class TasksKanbanPlugin extends Plugin {
         data?.savedBoards ??
         data?.savedQueries ??
         DEFAULT_PLUGIN_DATA.savedBoards,
+      jiraBaseUrl: data?.jiraBaseUrl ?? DEFAULT_PLUGIN_DATA.jiraBaseUrl,
     };
   }
 

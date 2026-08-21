@@ -1,5 +1,6 @@
 import type { Task } from "../services/TasksIntegration";
 import { TasksIntegration } from "../services/TasksIntegration";
+import { TaskDetailsModal } from "../modals/TaskDetailsModal";
 import { truncate } from "../utils/truncate";
 import {
   getDateChips,
@@ -8,6 +9,8 @@ import {
   stripTags,
   type Chip,
 } from "../utils/taskChips";
+import type { TaskDetailsSummary } from "../types/TaskDetails";
+import { buildJiraUrl } from "../utils/jira";
 import { setTooltip } from "obsidian";
 import type { App } from "obsidian";
 
@@ -19,6 +22,8 @@ export class KanbanCard {
   private task: Task;
   private tasksIntegration: TasksIntegration;
   private app: App;
+  private detailsSummary: TaskDetailsSummary | undefined;
+  private jiraBaseUrl: string;
   private dragStartHandler: ((e: DragEvent) => void) | null = null;
   private clickHandler: ((e: MouseEvent) => void) | null = null;
 
@@ -26,11 +31,15 @@ export class KanbanCard {
     container: HTMLElement,
     task: Task,
     tasksIntegration: TasksIntegration,
+    detailsSummary?: TaskDetailsSummary,
+    jiraBaseUrl: string = "",
   ) {
     this.container = container;
     this.task = task;
     this.tasksIntegration = tasksIntegration;
     this.app = tasksIntegration.app;
+    this.detailsSummary = detailsSummary;
+    this.jiraBaseUrl = jiraBaseUrl;
   }
 
   /**
@@ -83,18 +92,83 @@ export class KanbanCard {
       descEl.setAttribute("title", fullTitle);
     }
 
+    // Extra-metadata badges (Jira, notes, attachments) — only when present.
+    this.renderDetailsBadges();
+
     // Footer: metadata chips (priority, dates, dependencies)
     this.renderChips();
 
     // Add drag start handler
     this.setupDragAndDrop();
 
-    // Add click handler to open the source file
+    // Click opens the full task-details modal; Ctrl/Cmd+click opens the
+    // source file directly (a shortcut this card doesn't otherwise use, and
+    // matches the "open in new context" convention Obsidian users expect
+    // from Ctrl/Cmd+click elsewhere).
     this.clickHandler = (event: MouseEvent) => {
       event.stopPropagation();
-      this.openSourceFile();
+      if (event.ctrlKey || event.metaKey) {
+        this.openSourceFile();
+        return;
+      }
+      new TaskDetailsModal(this.app, this.task, this.tasksIntegration).open();
     };
     this.container.addEventListener("click", this.clickHandler);
+  }
+
+  /**
+   * Render badges for this plugin's own extra metadata (Jira, notes,
+   * attachments) — never rendered when none of it is present, and never the
+   * full note text (a tooltip covers that), per the "keep cards scannable"
+   * requirement.
+   */
+  private renderDetailsBadges() {
+    const summary = this.detailsSummary;
+    if (
+      !summary ||
+      (!summary.hasJira && !summary.hasNotes && summary.attachmentCount === 0)
+    ) {
+      return;
+    }
+
+    const badgesEl = this.container.createDiv({
+      cls: "tasks-kanban-card-details-badges",
+    });
+
+    if (summary.hasJira && summary.jira) {
+      const jiraEl = badgesEl.createSpan({
+        cls: "tasks-kanban-card-badge tasks-kanban-card-badge-jira",
+        text: `🎫 ${summary.jira}`,
+      });
+      const url = buildJiraUrl(this.jiraBaseUrl, summary.jira);
+      if (url) {
+        jiraEl.addClass("tasks-kanban-card-badge-clickable");
+        setTooltip(jiraEl, `Abrir ${summary.jira} no Jira`);
+        jiraEl.addEventListener("click", (event) => {
+          event.stopPropagation();
+          window.open(url, "_blank");
+        });
+      }
+    }
+
+    if (summary.hasNotes) {
+      const notesEl = badgesEl.createSpan({
+        cls: "tasks-kanban-card-badge tasks-kanban-card-badge-notes",
+        text: "💬",
+      });
+      setTooltip(notesEl, "Esta task tem observações");
+    }
+
+    if (summary.attachmentCount > 0) {
+      const attachmentsEl = badgesEl.createSpan({
+        cls: "tasks-kanban-card-badge tasks-kanban-card-badge-attachments",
+        text: `🖼 ${summary.attachmentCount}`,
+      });
+      setTooltip(
+        attachmentsEl,
+        `${summary.attachmentCount} anexo${summary.attachmentCount > 1 ? "s" : ""}`,
+      );
+    }
   }
 
   /**

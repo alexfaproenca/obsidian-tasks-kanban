@@ -16,7 +16,9 @@ A Kanban board view plugin for Obsidian that displays Tasks in a visual board la
 - **Drag & Drop**: Move tasks between columns to change their status
 - **Tasks Integration**: Listens to Tasks plugin events for real-time updates
 - **Task Format Aware**: Writes done/cancelled dates in whichever format Tasks' own **Task Format** setting specifies — emoji (`✅ 2026-08-04`) or Dataview (`[completion:: 2026-08-04]`)
-- **Click to Open**: Click on any task card to open the source file
+- **Task Details Modal**: Click a card to open a full editor (title, status, priority, due date, Jira link, notes, image attachments) instead of jumping straight to the source file; use the modal's "Open source note" button, or Ctrl/Cmd+click a card, to jump to the note directly
+- **Jira Linking**: Tag a task with a Jira issue key (e.g. `DIG-12345`); with a Jira base URL configured in settings, the card's badge opens the issue directly
+- **Notes & Attachments**: Attach free-form notes and pasted/dropped screenshots to a task without touching its description — stored as plain Markdown next to your vault, not inside the plugin's settings file
 
 ## Installation
 

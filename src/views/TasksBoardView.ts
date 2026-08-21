@@ -15,6 +15,8 @@ import {
 export interface BoardHost {
   createPersistence(id: string): BoardStatePersistence;
   getBoardName(id: string): string;
+  /** The configured Jira base URL (e.g. `https://acme.atlassian.net`), or "" if unset. */
+  getJiraBaseUrl(): string;
 }
 
 interface BoardViewState {
@@ -107,6 +109,7 @@ export class TasksBoardView extends ItemView {
       this.app,
       this.tasksIntegration,
       this.persistence,
+      () => this.host.getJiraBaseUrl(),
     );
 
     // Subscribe to tasks updates

@@ -28,6 +28,7 @@ import {
   type BoardQuery,
 } from "../query/boardQuery";
 import type { BoardStatePersistence, ColumnConfig } from "../types/persistence";
+import { summarize, type TaskDetailsSummary } from "../types/TaskDetails";
 
 export type { KanbanColumnConfig } from "../utils/statusColumns";
 
@@ -58,17 +59,29 @@ export class KanbanBoard {
   private collapsedGroups: Set<string>;
   /** Custom columns for this board; empty ⇒ default status columns. */
   private columnConfigs: ColumnConfig[];
+  /** Returns the currently configured Jira base URL; called live (not snapshotted) so a settings change takes effect on the next render. */
+  private readonly getJiraBaseUrl: () => string;
+  /**
+   * Extra-metadata summaries (Jira/notes/attachments) for cards to show as
+   * badges, keyed by task id. Loaded from {@link TaskDetailsRepository} —
+   * a dot-folder Obsidian doesn't emit change events for, so this is
+   * refreshed on every {@link updateTasks} call rather than left to a
+   * vault-event listener (see {@link TasksIntegration.notifyDetailsChanged}).
+   */
+  private taskDetailsSummaries = new Map<string, TaskDetailsSummary>();
 
   constructor(
     container: HTMLElement,
     app: App,
     tasksIntegration: TasksIntegration,
     persistence: BoardStatePersistence,
+    getJiraBaseUrl: () => string = () => "",
   ) {
     this.container = container;
     this.app = app;
     this.tasksIntegration = tasksIntegration;
     this.persistence = persistence;
+    this.getJiraBaseUrl = getJiraBaseUrl;
 
     // Hydrate the canonical query from the persisted query string.
     const initial = persistence.get();
@@ -212,6 +225,21 @@ export class KanbanBoard {
     this.allTasks = this.removeDuplicateTasks(tasks);
     this.searchBar.setTags(getUniqueTags(this.allTasks));
     this.applyQuery();
+    void this.refreshTaskDetailsSummaries();
+  }
+
+  /**
+   * Reload the extra-metadata summaries and re-render once loaded. Runs
+   * fire-and-forget from {@link updateTasks} — cards render immediately with
+   * whatever summaries were already cached, then pick up any change a moment
+   * later, rather than blocking the (much more frequent) task re-render.
+   */
+  private async refreshTaskDetailsSummaries(): Promise<void> {
+    const all = await this.tasksIntegration.taskDetailsRepository.getAll();
+    this.taskDetailsSummaries = new Map(
+      [...all].map(([id, details]) => [id, summarize(details)]),
+    );
+    this.applyQuery();
   }
 
   /**
@@ -310,7 +338,14 @@ export class KanbanBoard {
       this.laneKeys = keys;
     }
 
-    groups.forEach((group, i) => this.lanes[i].updateTasks(group.tasks));
+    const jiraBaseUrl = this.getJiraBaseUrl();
+    groups.forEach((group, i) =>
+      this.lanes[i].updateTasks(
+        group.tasks,
+        this.taskDetailsSummaries,
+        jiraBaseUrl,
+      ),
+    );
   }
 
   /**

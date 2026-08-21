@@ -55,6 +55,8 @@ export interface PluginData {
   baseColumns: ColumnConfig[];
   /** User-managed saved boards (views). */
   savedBoards: SavedBoard[];
+  /** Base URL for the configured Jira instance (e.g. `https://acme.atlassian.net`), or "" if unset. */
+  jiraBaseUrl: string;
 }
 
 /** Reserved id for the base-only board (the default view). */
@@ -66,6 +68,7 @@ export const DEFAULT_PLUGIN_DATA: PluginData = {
   baseCollapsedGroups: [],
   baseColumns: [],
   savedBoards: [],
+  jiraBaseUrl: "",
 };
 
 /**

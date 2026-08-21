@@ -1,5 +1,35 @@
 import { vi } from "vitest";
 
+// Minimal Modal stub: enough for components that `extends Modal` to be
+// imported/instantiated in tests without a real Obsidian DOM chrome.
+class Modal {
+  app: unknown;
+  contentEl: HTMLElement;
+  titleEl: HTMLElement;
+
+  constructor(app: unknown) {
+    this.app = app;
+    this.contentEl = document.createElement("div");
+    this.titleEl = document.createElement("div");
+  }
+
+  setTitle(title: string): this {
+    this.titleEl.textContent = title;
+    return this;
+  }
+
+  open(): void {
+    this.onOpen();
+  }
+
+  close(): void {
+    this.onClose();
+  }
+
+  onOpen(): void {}
+  onClose(): void {}
+}
+
 // Mock Obsidian API
 vi.mock("obsidian", () => ({
   Plugin: class {},
@@ -11,7 +41,11 @@ vi.mock("obsidian", () => ({
   Workspace: class {},
   MetadataCache: class {},
   TFile: class {},
+  Modal,
   setTooltip: vi.fn(),
+  // Real normalizePath collapses "./"/".." segments and backslashes; tests
+  // only exercise already-clean vault-relative paths, so passthrough is fine.
+  normalizePath: (path: string) => path,
 }));
 
 // Apply polyfills directly to the prototype so every element gets them.
@@ -64,6 +98,29 @@ if (!proto.createSpan) {
     this.appendChild(span);
     return span;
   } as (opts?: { cls?: string; text?: string }) => HTMLSpanElement;
+}
+if (!proto.createEl) {
+  proto.createEl = function createEl(
+    tag: string,
+    opts?: {
+      cls?: string;
+      text?: string;
+      attr?: Record<string, string>;
+      type?: string;
+    },
+  ): HTMLElement {
+    const el = document.createElement(tag);
+    if (opts?.cls) el.className = opts.cls;
+    if (opts?.text) el.textContent = opts.text;
+    if (opts?.type) el.setAttribute("type", opts.type);
+    if (opts?.attr) {
+      for (const [key, value] of Object.entries(opts.attr)) {
+        el.setAttribute(key, String(value));
+      }
+    }
+    this.appendChild(el);
+    return el;
+  } as (tag: string, opts?: unknown) => HTMLElement;
 }
 
 // Global test setup

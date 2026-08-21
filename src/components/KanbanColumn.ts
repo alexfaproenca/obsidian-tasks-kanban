@@ -2,6 +2,7 @@ import type { Task } from "../services/TasksIntegration";
 import { TasksIntegration } from "../services/TasksIntegration";
 import { KanbanCard } from "./KanbanCard";
 import type { KanbanColumnConfig } from "../utils/statusColumns";
+import type { TaskDetailsSummary } from "../types/TaskDetails";
 
 /**
  * The Kanban column component
@@ -113,7 +114,11 @@ export class KanbanColumn {
   /**
    * Update tasks in this column
    */
-  updateTasks(tasks: Task[]) {
+  updateTasks(
+    tasks: Task[],
+    taskDetailsSummaries: Map<string, TaskDetailsSummary> = new Map(),
+    jiraBaseUrl: string = "",
+  ) {
     // Clear existing cards
     for (const card of this.cards) {
       card.destroy();
@@ -138,7 +143,13 @@ export class KanbanColumn {
       const cardEl = cardsContainer.createDiv({
         cls: "tasks-kanban-card",
       });
-      const card = new KanbanCard(cardEl, task, this.tasksIntegration);
+      const card = new KanbanCard(
+        cardEl,
+        task,
+        this.tasksIntegration,
+        taskDetailsSummaries.get(task.id),
+        jiraBaseUrl,
+      );
       this.cards.push(card);
       card.render();
     }
